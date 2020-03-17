@@ -1,0 +1,102 @@
+#!/usr/bin/env python3
+
+# Draw an InfiniBand network topology using graphviz
+#
+# 2020-03-17 Jan de Cuveland <cuveland@compeng.uni-frankfurt.de>
+
+"""
+iptopviz
+Usage:
+  iptopviz <topology-file> <output-file>
+  iptopviz -h | --help
+  iptopviz --version
+"""
+
+import docopt
+import re
+
+
+def read_topology(topology_file):
+  topology = {}
+  current_node = ""
+  with open(topology_file, mode='r', buffering=1) as f:
+    for line in f:
+      line = line.strip()
+      if line:
+        # Read the name of nodes and the number of ports (Switches or HCAs)
+        m = re.search("^(\w+)\s+(\d+)\s+\"(.+?)\"\s+#\s+\"(.+?)\"", line)
+        if m:
+          current_node = m.groups()[2]
+          topology[current_node] = {}
+          topology[current_node]['number_of_ports'] = int(m.groups()[1])
+          topology[current_node]['label'] = m.groups()[3]
+          if m.groups()[0] == 'Switch':
+            topology[current_node]['node_type'] = 'switch'
+          else:
+            topology[current_node]['node_type'] = 'hca'
+          topology[current_node]['ports'] = []
+        # Read the port lines
+        m = re.search("^\[(\d+)\].*?\"(.+?)\"\[(\d+)\]", line)
+        if m:
+          local_port = int(m.groups()[0])
+          remote = m.groups()[1]
+          remote_port = int(m.groups()[2])
+          topology[current_node]['ports'].append(
+            (local_port, remote, remote_port))
+  return topology
+
+
+def node_label(label, number_of_ports):
+  label = re.sub(r"[;: ]+", "\\\\n", label)
+  port_range = range(1, number_of_ports + 1)
+  for i in range(number_of_ports // 2):
+    label += "|{{<{0}>{0}|<{1}>{1}}}".format(i * 2 + 1, i * 2 + 2)
+  if number_of_ports % 2 == 1:
+    label += "|<{0}>{0}".format(number_of_ports)    
+  return label
+
+
+def write_dot_file(topology, dot_file):
+  with open(dot_file, mode='w') as f:
+    f.write("graph Topology {\n")
+
+    # nodes
+    for node in topology.keys():
+      node_info = topology[node]
+      label = node_label(node_info['label'], node_info['number_of_ports'])
+      node_type = node_info['node_type']
+      if node_type == "switch":      
+        attr = {
+          "color": "blue",
+          "fillcolor": "azure",
+          "style": "filled",
+        }
+      else: # hca
+        attr = {
+          "color": "gray",
+        }
+      attr["shape"] = "record"
+      attr["label"] = label
+      attr_str = ", ".join(["{}=\"{}\"".format(k,v) for (k,v) in attr.items()])
+      f.write('  "{}" [{}];\n'.format(node, attr_str))
+
+    # edges
+    for node in topology.keys():
+      ports = topology[node]['ports']
+      node_type = topology[node]['node_type']
+      for (local_port, remote, remote_port) in ports:
+        remote_type = topology[remote]['node_type']
+        color = "gray"
+        if node_type == "switch" and remote_type == "switch":
+          color = "blue"
+        # only one edge per connection
+        if node + " " + str(local_port) < remote + " " + str(remote_port):
+          f.write('  "{}":{} -- "{}":{} [color={}];\n'.format(
+            node, local_port, remote, remote_port, color))
+    f.write("}\n")
+
+
+if __name__ == "__main__":
+  arg = docopt.docopt(__doc__, version="0.1")
+  topology = read_topology(arg["<topology-file>"])
+  write_dot_file(topology, arg["<output-file>"])
