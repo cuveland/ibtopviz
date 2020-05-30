@@ -81,7 +81,7 @@ def speed2weight(speed):
         s = 8
         color = 'blue'
     elif s1 == 'FDR10':
-        s = 10  # ???
+        s = 8  # like QDR, at best
         color = 'red'
     elif s1 == 'FDR':
         s = 13.64
@@ -90,13 +90,13 @@ def speed2weight(speed):
         s = 24.24
         color = 'green'
     elif s1 == 'HDR':
-        s = 50 # roughly??
+        s = 50  # roughly??
         color = 'green'
     elif s1 == 'NDR':
-        s = 100 # roughly?
+        s = 100  # roughly?
         color = 'green'
     elif s1 == 'XDR':
-        s = 250 # the future?
+        s = 250  # the future?
         color = 'green'
     else:
         raise NotImplementedError('Support for Infiniband speed %s not implemented' % s1)
@@ -143,12 +143,13 @@ def read_spine(spine_file):
 
 def write_dot_file(topology, dot_file):
     with open(dot_file, mode='w') as f:
-        # +rankdir="LR", splines="ortho" <- causes problems with ranks
+        # +rankdir="LR", splines="ortho" <- causes problems with shape="record"
         f.write('digraph ibTopology {\ngraph [rankdir="LR", splines="ortho"];\n')
 
         # nodes
         for node in topology.keys():
             node_info = topology[node]
+            # FIXME: (willdo) try to remake node_label() with HTML-like
             label = node_label(node_info['label'], node_info['number_of_ports'])
             node_type = node_info['node_type']
             if node_type == "switch":
@@ -212,8 +213,6 @@ def write_dot_file(topology, dot_file):
                 # color = "gray"
                 if node_type == "switch" and remote_type == "switch":
                     color = "darkgreen"
-                    # add penwidth='2' or '3'?
-                    # if so, reuse dict(attr) method from above
                 # only one edge per connection
                 if node + " " + str(local_port) < remote + " " + str(remote_port):
                     f.write('  "{}":{} -> "{}":{} [color={}, arrowhead="dot", weight={}];\n'.format(
