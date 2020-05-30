@@ -154,8 +154,8 @@ def write_dot_file(topology, dot_file):
             if node_type == "switch":
                 if node_info['switch_type'] == 'spine':
                     attr = {
-                        "color": "red",
-                        "fillcolor": "lightpink",
+                        "color": "orange",
+                        "fillcolor": "darkorange",
                         "style": "filled",
                         "rank": "0",
                         "root": "true",
