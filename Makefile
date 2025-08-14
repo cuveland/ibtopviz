@@ -2,10 +2,10 @@
 
 all: topology.pdf
 
-topology.pdf: topology.gv
+%.pdf: %.gv
 	neato -Goverlap=false -Tpdf $< -o $@
 
-topology.gv: topology.txt
+%.gv: %.txt
 	./ibtopviz $< $@
 
 topology.txt:
